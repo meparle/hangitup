@@ -1,18 +1,27 @@
 package com.littlemissadjective.hangitup
 
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.hardware.Camera
+import android.net.Uri
 import android.util.Log
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.Button
 import android.widget.Toast
+import android.provider.MediaStore
+
+
 
 class CameraPreviewActivity : AppCompatActivity() {
 
     private val TAG = "CameraPreviewActivity"
     private val CAMERA_ID = 0
+    private val REQUEST_IMAGE_GET = 1
 
     private var camera: Camera? = null
 
@@ -37,10 +46,6 @@ class CameraPreviewActivity : AppCompatActivity() {
             val cameraPreview = CameraPreview(this, null,
                     0, camera, cameraInfo, displayRotation)
             findViewById<FrameLayout>(R.id.camera_preview).addView(cameraPreview)
-        }
-        val button = findViewById<Button>(R.id.button_select)
-        button.setOnClickListener {
-            Toast.makeText(this@CameraPreviewActivity,"Hi",Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -68,6 +73,24 @@ class CameraPreviewActivity : AppCompatActivity() {
     private fun releaseCamera() {
         camera?.release()
         camera = null
+    }
+
+    fun pickImage(v: View) {
+        Log.w("Picker","Picked")
+        val intent = Intent(Intent.ACTION_GET_CONTENT)
+        intent.type = "image/*"
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivityForResult(intent, REQUEST_IMAGE_GET)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
+        if (requestCode == REQUEST_IMAGE_GET && resultCode == RESULT_OK) {
+            val bitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, data.data)
+            val drawable = BitmapDrawable(this.resources, bitmap)
+            // TODO: Add Sceneform, then convert Drawable to Renderable (sceneform).
+            Log.w("Bitmap","Loaded")
+        }
     }
 
 }
