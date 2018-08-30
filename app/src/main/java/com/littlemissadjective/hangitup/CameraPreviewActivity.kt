@@ -52,9 +52,18 @@ class CameraPreviewActivity : AppCompatActivity() {
     public override fun onPause() {
         super.onPause()
         // Stop camera access
-        releaseCamera()
+
     }
 
+/**    public override fun onResume() {
+        super.onResume()
+        // Restart camera access
+        setContentView(R.layout.activity_camera_preview)
+        val cameraPreview = CameraPreview(this, null,
+                0, camera, Camera.CameraInfo())
+        findViewById<FrameLayout>(R.id.camera_preview).addView(cameraPreview)
+    }
+*/
     /**
      * A safe way to get an instance of the Camera object.
      */

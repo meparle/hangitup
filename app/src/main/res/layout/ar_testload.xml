@@ -1,0 +1,14 @@
+<!--
+   Copyright 2018 Google LLC.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+
+-->
+
+
+  <ImageView
+      xmlns:android="http://schemas.android.com/apk/res/android"
+      android:id="@+id/ux_fragment"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"/>
+

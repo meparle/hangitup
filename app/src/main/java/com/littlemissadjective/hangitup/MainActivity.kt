@@ -1,152 +1,203 @@
 package com.littlemissadjective.hangitup
 
-import android.support.v7.app.AppCompatActivity
-import android.os.Bundle
-import android.support.v4.app.ActivityCompat
-import android.view.View
-import android.Manifest
+import android.app.Activity
+import android.app.ActivityManager
+import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import com.google.ar.core.ArCoreApk
-import com.google.ar.core.Session
-import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException
-import java.security.Permission
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import android.os.Build
+import android.os.Build.VERSION_CODES
+import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
+import android.support.v7.app.AppCompatActivity
+import android.util.Log
+import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
+import android.widget.Toast
+import com.google.ar.core.HitResult
+import com.google.ar.core.Plane
+import com.google.ar.sceneform.AnchorNode
+import com.google.ar.sceneform.math.Quaternion
+import com.google.ar.sceneform.math.Vector3
+import com.google.ar.sceneform.rendering.ModelRenderable
+import com.google.ar.sceneform.rendering.Renderable
+import com.google.ar.sceneform.rendering.ViewRenderable
+import com.google.ar.sceneform.ux.ArFragment
+import com.google.ar.sceneform.ux.TransformableNode
+import java.io.File
+import java.io.FileOutputStream
+import java.io.OutputStream
 
-const val REQUEST_IMAGE_GET = 1
-const val PERMISSION_REQUEST = 0
-
-private val PERMISSIONS = arrayOf(
-        Manifest.permission.CAMERA,
-        Manifest.permission.WRITE_EXTERNAL_STORAGE,
-        Manifest.permission.READ_EXTERNAL_STORAGE)
-
+/**
+ * This is an example activity that uses the Sceneform UX package to make common AR tasks easier.
+ */
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var layout: View
+    private var arFragment: ArFragment? = null
+    private var andyRenderable: ViewRenderable? = null
+    private var loadedRenderable: ViewRenderable? = null
+    private var isPlaced = false
+    private val REQUEST_IMAGE_GET = 1
 
-    // Set to true ensures requestInstall() triggers installation if necessary.
-
-    private var mUserRequestedInstall = true
-
-    /**
-     * You must disclose the use of ARCore, and how it collects and processes data.
-     * This can be done by displaying a prominent link to the site "How Google uses data when
-     * you use our partners' sites or apps", (located at www.google.com/policies/privacy/partners/)
-     */
-
-    override fun onResume() {
-        super.onResume()
-        showCameraPreview()
-        var mSession: Session? = null
-        try {
-            if (mSession == null) {
-                when(ArCoreApk.getInstance().requestInstall(this, mUserRequestedInstall)) {
-                    ArCoreApk.InstallStatus.INSTALLED ->
-                        mSession = Session(this)
-                        // Success.
-                    ArCoreApk.InstallStatus.INSTALL_REQUESTED ->
-                        // Ensures next invocation of requestInstall() will either return
-                        // INSTALLED or throw an exception.
-                        mUserRequestedInstall = false
-                    else -> mUserRequestedInstall = false
-                }
-            }
-        } catch (e: UnavailableUserDeclinedInstallationException) {
-            // Display an appropriate message to the user and return gracefully.
-            return
-//        } catch (...) {  // current catch statements
-//            ...
-//            return;  // mSession is still null
-        }
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override// CompletableFuture requires api level 24
+    // FutureReturnValueIgnored is not valid
+    fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-//        layout = findViewById(R.id.main_layout)
 
-//        findViewById<Button>(R.id.button_open_camera).setOnClickListener { showCameraPreview() }
-    }
-
-    override fun onRequestPermissionsResult(
-            requestCode: Int,
-            permissions: Array<String>,
-            grantResults: IntArray
-    ) {
-        if (grantResults.filter { result -> result == PackageManager.PERMISSION_GRANTED }.size
-                == PERMISSIONS.size) {
-            startCamera()
+        if (!checkIsSupportedDeviceOrFinish(this)) {
+            return
         }
 
+        setContentView(R.layout.activity_ux)
+        arFragment = supportFragmentManager.findFragmentById(R.id.ux_fragment) as ArFragment
+
+        // When you build a Renderable, Sceneform loads its resources in the background while returning
+        // a CompletableFuture. Call thenAccept(), handle(), or check isDone() before calling get().
+//        ModelRenderable.builder()
+//                .setSource(this, R.raw.redpanda)
+//                .build()
+//                .thenAccept { renderable -> andyRenderable = renderable }
+//                .exceptionally { throwable ->
+//                    val toast = Toast.makeText(this, "Unable to load andy renderable", Toast.LENGTH_LONG)
+//                    toast.setGravity(Gravity.CENTER, 0, 0)
+//                    toast.show()
+//                    null
+//                }
 
 
-//        if (requestCode == PERMISSION_REQUEST) {
-//            // Request for camera permission.
-//            if (grantResults.size == PERMISSIONS.size && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-//                // Permission has been granted. Start camera preview Activity.
-////                layout.showSnackbar(R.string.camera_permission_granted, Snackbar.LENGTH_SHORT)
-//                startCamera()
-//            } else {
-////                // Permission request was denied.
-////                layout.showSnackbar(R.string.camera_permission_denied, Snackbar.LENGTH_SHORT)
+
+        ViewRenderable.builder()
+                .setView(this, R.layout.ar_test)
+                //.setSizer {  }
+                .build()
+                .thenAccept { renderable -> andyRenderable = renderable }
+                .exceptionally {
+                    val toast = Toast.makeText(this, "Unable to load andy renderable", Toast.LENGTH_LONG)
+                    toast.setGravity(Gravity.CENTER, 0, 0)
+                    toast.show()
+                    null
+                }
+
+
+        arFragment!!.setOnTapArPlaneListener { hitResult: HitResult, plane: Plane, motionEvent: MotionEvent ->
+
+            //            if (!isPlaced) {
+            // Create the Anchor.
+            val anchor = hitResult.createAnchor()
+            val anchorNode = AnchorNode(anchor)
+//                val node : BaseTransformableNode? = null
+            anchorNode.setParent(arFragment!!.arSceneView.scene)
+//                node!!.setParent(anchorNode)
+            Log.w("Anchor","Parent set")
+
+            // Create the transformable andy and add it to the anchor.
+            val point = TransformableNode(arFragment!!.transformationSystem)
+            point.renderable = andyRenderable
+
+//                if (plane.type == Plane.Type.VERTICAL) {
+            val yAxis = plane.getCenterPose().getYAxis();
+            val planeNormal = Vector3(yAxis[0], yAxis[1], yAxis[2]);
+            val upQuat = Quaternion.lookRotation(planeNormal,Vector3.up()).inverted()
+            point.setWorldRotation(upQuat)
+//                    var anchorUp = anchorNode.left
+//                    point.setLookDirection(anchorUp)
+            Log.w("Look direction","Changed to up")
+//                }
+//                var copyRenderable : ViewRenderable = andyRenderable!!.makeCopy()
+//                copyRenderable.setVerticalAlignment(ViewRenderable.VerticalAlignment.CENTER)
+//                var rotation1 : Quaternion = Quaternion.axisAngle(Vector3(0.0f, 1.0f, 0.0f), 90.0f)
+//                node.setWorldRotation(rotation1)
+//                point.renderable = copyRenderable
+//                point.setParent(node)
+
+            point.setParent(anchorNode)
+            //point.scaleController.
+            point.select()
+//                isPlaced = true
+//                Log.w("Anchor","Placed")
 //            }
-//        }
+
+        }
     }
-//
-    private fun showCameraPreview() {
-        for (i in 0..PERMISSIONS.size-1) {
-            if (checkSelfPermissionCompat(PERMISSIONS[i]) !=
-                PackageManager.PERMISSION_GRANTED) {
-                // Permission is missing and must be requested.
-                requestAllPermission()
-            } else {
-                //layout.showSnackbar(R.string.camera_permission_available, Snackbar.LENGTH_SHORT)
-                startCamera()
+
+    fun pickImage(v: View) {
+        Log.w("Picker","Picked")
+        val intent = Intent(Intent.ACTION_GET_CONTENT)
+        intent.type = "image/*"
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivityForResult(intent, REQUEST_IMAGE_GET)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
+        if (requestCode == REQUEST_IMAGE_GET && resultCode == RESULT_OK) {
+            val bitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, data.data)
+//            val drawable = BitmapDrawable(this.resources, bitmap)
+            fileCache(bitmap)
+            Log.w("Bitmap","Loaded")
+            ViewRenderable.builder()
+                    .setView(this, R.layout.ar_testload)
+                    .build()
+                    .thenAccept { renderable -> loadedRenderable = renderable } //need to put in saved location here
+                    .exceptionally {
+                        Log.w("Load File","Unable to load saved renderable")
+                        null
+                    }
+        }
+    }
+
+    private fun fileCache(image : Bitmap) {
+        val f3 = File(Environment.getExternalStorageDirectory().toString() + "/images/");
+        if(!f3.exists())
+            f3.mkdirs()
+        val outStream : OutputStream
+        val file = File(Environment.getExternalStorageDirectory().toString() + "/images/"+".png");
+        try {
+            outStream = FileOutputStream(file);
+            image.compress(Bitmap.CompressFormat.PNG, 85, outStream);
+            outStream.close();
+            Log.w("Bitmap","Saved")
+        } catch (e : Exception) {
+            e.printStackTrace();
+        }
+    }
+
+    companion object {
+        private val TAG = MainActivity::class.java!!.getSimpleName()
+        private val MIN_OPENGL_VERSION = 3.1
+
+        /**
+         * Returns false and displays an error message if Sceneform can not run, true if Sceneform can run
+         * on this device.
+         *
+         *
+         * Sceneform requires Android N on the device as well as OpenGL 3.1 capabilities.
+         *
+         *
+         * Finishes the activity if Sceneform can not run
+         */
+        fun checkIsSupportedDeviceOrFinish(activity: Activity): Boolean {
+            if (Build.VERSION.SDK_INT < VERSION_CODES.N) {
+                Log.e(TAG, "Sceneform requires Android N or later")
+                Toast.makeText(activity, "Sceneform requires Android N or later", Toast.LENGTH_LONG).show()
+                activity.finish()
+                return false
             }
+            val openGlVersionString = (activity.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager)
+                    .deviceConfigurationInfo
+                    .glEsVersion
+            if (java.lang.Double.parseDouble(openGlVersionString) < MIN_OPENGL_VERSION) {
+                Log.e(TAG, "Sceneform requires OpenGL ES 3.1 later")
+                Toast.makeText(activity, "Sceneform requires OpenGL ES 3.1 or later", Toast.LENGTH_LONG)
+                        .show()
+                activity.finish()
+                return false
+            }
+            return true
         }
     }
-//
-//    /**
-//     * Requests the [android.Manifest.permission.CAMERA] permission.
-//     * If an additional rationale should be displayed, the user has to launch the request from
-//     * a SnackBar that includes additional information.
-//     */
-    private fun requestAllPermission() {
-//        // Permission has not been granted and must be requested.
-//        if (shouldShowRequestPermissionRationaleCompat(Manifest.permission.CAMERA)) {
-//            // Provide an additional rationale to the user if the permission was not granted
-//            // and the user would benefit from additional context for the use of the permission.
-//            // Display a SnackBar with a button to request the missing permission.
-//            layout.showSnackbar(R.string.camera_access_required,
-//                    Snackbar.LENGTH_INDEFINITE, R.string.ok) {
-//                requestPermissionsCompat(arrayOf(Manifest.permission.CAMERA),
-//                        PERMISSION_REQUEST_CAMERA)
-//            }
-//
-//        } else {
-//            layout.showSnackbar(R.string.camera_permission_not_available, Snackbar.LENGTH_SHORT)
-//
-//            // Request the permission. The result will be received in onRequestPermissionResult().
-        requestPermissions(PERMISSIONS, PERMISSION_REQUEST)
-//        }
-    }
-//
-    private fun startCamera() {
-        val intent = Intent(this, CameraPreviewActivity::class.java)
-        startActivity(intent)
-    }
-
-    fun AppCompatActivity.checkSelfPermissionCompat(permission: String) =
-            ActivityCompat.checkSelfPermission(this, permission)
-
-    fun AppCompatActivity.shouldShowRequestPermissionRationaleCompat(permission: String) =
-            ActivityCompat.shouldShowRequestPermissionRationale(this, permission)
-
-    fun AppCompatActivity.requestPermissionsCompat(permissionsArray: Array<String>,
-                                                   requestCode: Int) {
-        ActivityCompat.requestPermissions(this, permissionsArray, requestCode)
-    }
-
 }
-//given photo within app (asset), place on scene
-//TODO: write Gallery intent (remove read external storage permission?) ACTION_GET_CONTENT
+//TODO: scale image down/up, improve rotation
