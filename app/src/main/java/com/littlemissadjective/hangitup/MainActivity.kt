@@ -5,40 +5,43 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Build
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
-import android.os.Environment
 import android.provider.MediaStore
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.widget.ImageView
 import android.widget.Toast
 import com.google.ar.core.HitResult
 import com.google.ar.core.Plane
 import com.google.ar.sceneform.AnchorNode
 import com.google.ar.sceneform.math.Quaternion
 import com.google.ar.sceneform.math.Vector3
-import com.google.ar.sceneform.rendering.ModelRenderable
-import com.google.ar.sceneform.rendering.Renderable
 import com.google.ar.sceneform.rendering.ViewRenderable
 import com.google.ar.sceneform.ux.ArFragment
 import com.google.ar.sceneform.ux.TransformableNode
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
+import java.util.*
 
 /**
  * This is an example activity that uses the Sceneform UX package to make common AR tasks easier.
  */
 class MainActivity : AppCompatActivity() {
 
-    private var arFragment: ArFragment? = null
-    private var andyRenderable: ViewRenderable? = null
-    private var loadedRenderable: ViewRenderable? = null
+    private lateinit var arFragment: ArFragment
+    //    private var andyRenderable: ViewRenderable? = null
+//    private lateinit var point: TransformableNode
+    private lateinit var imageView: ImageView
+    //    private var savedFile: File? = null
+    private lateinit var loadedRenderable: ViewRenderable
     private var isPlaced = false
     private val REQUEST_IMAGE_GET = 1
 
@@ -68,43 +71,73 @@ class MainActivity : AppCompatActivity() {
 //                }
 
 
-
+//        ViewRenderable.builder()
+//                .setView(this, R.layout.ar_test)
+//                //.setSizer {  }
+//                .build()
+//                .thenAccept { renderable -> andyRenderable = renderable }
+//                .exceptionally {
+//                    val toast = Toast.makeText(this, "Unable to load andy renderable", Toast.LENGTH_LONG)
+//                    toast.setGravity(Gravity.CENTER, 0, 0)
+//                    toast.show()
+//                    null
+//                }
         ViewRenderable.builder()
                 .setView(this, R.layout.ar_test)
-                //.setSizer {  }
                 .build()
-                .thenAccept { renderable -> andyRenderable = renderable }
+                .thenAccept { renderable ->
+                    Log.w("Load File", "loaded saved renderable")
+                    imageView = renderable.view.findViewById<ImageView>(R.id.ux_fragment)
+                    loadedRenderable = renderable
+                }
                 .exceptionally {
-                    val toast = Toast.makeText(this, "Unable to load andy renderable", Toast.LENGTH_LONG)
-                    toast.setGravity(Gravity.CENTER, 0, 0)
-                    toast.show()
+                    Log.w("Load File", "Unable to load saved renderable", it)
                     null
                 }
 
 
-        arFragment!!.setOnTapArPlaneListener { hitResult: HitResult, plane: Plane, motionEvent: MotionEvent ->
+        arFragment.setOnTapArPlaneListener { hitResult: HitResult, plane: Plane, motionEvent: MotionEvent ->
 
             //            if (!isPlaced) {
             // Create the Anchor.
             val anchor = hitResult.createAnchor()
             val anchorNode = AnchorNode(anchor)
 //                val node : BaseTransformableNode? = null
-            anchorNode.setParent(arFragment!!.arSceneView.scene)
+            anchorNode.setParent(arFragment.arSceneView.scene)
 //                node!!.setParent(anchorNode)
-            Log.w("Anchor","Parent set")
+            Log.w("Anchor", "Parent set")
 
             // Create the transformable andy and add it to the anchor.
-            val point = TransformableNode(arFragment!!.transformationSystem)
-            point.renderable = andyRenderable
+            val point = TransformableNode(arFragment.transformationSystem)
+            point.setParent(anchorNode)
+            point.renderable = loadedRenderable
 
 //                if (plane.type == Plane.Type.VERTICAL) {
-            val yAxis = plane.getCenterPose().getYAxis();
-            val planeNormal = Vector3(yAxis[0], yAxis[1], yAxis[2]);
-            val upQuat = Quaternion.lookRotation(planeNormal,Vector3.up()).inverted()
-            point.setWorldRotation(upQuat)
+            val planeNormal = plane.centerPose.yAxis.toV();
+            val upQuat = Quaternion.lookRotation(planeNormal, Vector3.up()).inverted()
+            when (plane.type) {
+                Plane.Type.HORIZONTAL_DOWNWARD_FACING -> {
+
+                }
+                Plane.Type.HORIZONTAL_UPWARD_FACING -> {
+                    point.localRotation = Quaternion.axisAngle(Vector3.right(), -90.0f)
+                }
+                Plane.Type.VERTICAL -> {
+//                    point.worldRotation = Quaternion.axisAngle(Vector3.forward(), 90.0f)
+//                    point.localRotation = Quaternion.axisAngle(Vector3.right(), -180.0f)
+                    point.localRotation =
+                            Quaternion.multiply(
+
+                                    Quaternion.axisAngle(Vector3.right(), -180.0f),
+                                    Quaternion.axisAngle(Vector3.up(), 180.0f)
+                            ).inverted()
+
+//                    point.localRotation = Quaternion.a(Vector3.right(), 90.0f)
+                }
+            }
 //                    var anchorUp = anchorNode.left
 //                    point.setLookDirection(anchorUp)
-            Log.w("Look direction","Changed to up")
+            Log.w("Look direction", "Changed to up")
 //                }
 //                var copyRenderable : ViewRenderable = andyRenderable!!.makeCopy()
 //                copyRenderable.setVerticalAlignment(ViewRenderable.VerticalAlignment.CENTER)
@@ -113,7 +146,6 @@ class MainActivity : AppCompatActivity() {
 //                point.renderable = copyRenderable
 //                point.setParent(node)
 
-            point.setParent(anchorNode)
             //point.scaleController.
             point.select()
 //                isPlaced = true
@@ -124,7 +156,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun pickImage(v: View) {
-        Log.w("Picker","Picked")
+        Log.w("Picker", "Picked")
         val intent = Intent(Intent.ACTION_GET_CONTENT)
         intent.type = "image/*"
         if (intent.resolveActivity(packageManager) != null) {
@@ -134,39 +166,33 @@ class MainActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
         if (requestCode == REQUEST_IMAGE_GET && resultCode == RESULT_OK) {
-            val bitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, data.data)
+//            val bitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, data.data)
 //            val drawable = BitmapDrawable(this.resources, bitmap)
-            fileCache(bitmap)
-            Log.w("Bitmap","Loaded")
-            ViewRenderable.builder()
-                    .setView(this, R.layout.ar_testload)
-                    .build()
-                    .thenAccept { renderable -> loadedRenderable = renderable } //need to put in saved location here
-                    .exceptionally {
-                        Log.w("Load File","Unable to load saved renderable")
-                        null
-                    }
+            val savedFile = fileCache(data.data)
+            imageView.setImageBitmap(BitmapFactory.decodeFile(savedFile.absolutePath))
+            Log.w("Bitmap", "Loaded")
         }
     }
 
-    private fun fileCache(image : Bitmap) {
-        val f3 = File(Environment.getExternalStorageDirectory().toString() + "/images/");
-        if(!f3.exists())
-            f3.mkdirs()
-        val outStream : OutputStream
-        val file = File(Environment.getExternalStorageDirectory().toString() + "/images/"+".png");
+    private fun fileCache(image: Uri): File {
+        val f3 = this.cacheDir.resolve("images")
+        f3.mkdirs()
+        val file = f3.resolve("imageTemp.png")
         try {
-            outStream = FileOutputStream(file);
-            image.compress(Bitmap.CompressFormat.PNG, 85, outStream);
-            outStream.close();
-            Log.w("Bitmap","Saved")
-        } catch (e : Exception) {
-            e.printStackTrace();
+            this.contentResolver.openInputStream(image).use { ins ->
+                file.outputStream().use { outs ->
+                    ins.copyTo(outs)
+                }
+            }
+            Log.w("Bitmap", "Saved")
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
+        return file
     }
 
     companion object {
-        private val TAG = MainActivity::class.java!!.getSimpleName()
+        private val TAG = MainActivity::class.java.getSimpleName()
         private val MIN_OPENGL_VERSION = 3.1
 
         /**
@@ -200,4 +226,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
-//TODO: scale image down/up, improve rotation
+
+//TODO: load image file from storage on phone
+//TODO: reorganise app into multiple activities / components
+//TODO: scale image down/up, improve rotation for vertical plane
+fun FloatArray.toQ() = Quaternion(this[0], this[1], this[2], this[3])
+
+fun FloatArray.toV() = Vector3(this[0], this[1], this[2])
