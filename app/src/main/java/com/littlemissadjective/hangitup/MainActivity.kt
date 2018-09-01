@@ -4,16 +4,13 @@ import android.app.Activity
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
-import android.provider.MediaStore
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
-import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
@@ -27,9 +24,6 @@ import com.google.ar.sceneform.rendering.ViewRenderable
 import com.google.ar.sceneform.ux.ArFragment
 import com.google.ar.sceneform.ux.TransformableNode
 import java.io.File
-import java.io.FileOutputStream
-import java.io.OutputStream
-import java.util.*
 
 /**
  * This is an example activity that uses the Sceneform UX package to make common AR tasks easier.
@@ -37,12 +31,8 @@ import java.util.*
 class MainActivity : AppCompatActivity() {
 
     private lateinit var arFragment: ArFragment
-    //    private var andyRenderable: ViewRenderable? = null
-//    private lateinit var point: TransformableNode
     private lateinit var imageView: ImageView
-    //    private var savedFile: File? = null
     private lateinit var loadedRenderable: ViewRenderable
-    private var isPlaced = false
     private val REQUEST_IMAGE_GET = 1
 
     override// CompletableFuture requires api level 24
@@ -59,29 +49,7 @@ class MainActivity : AppCompatActivity() {
 
         // When you build a Renderable, Sceneform loads its resources in the background while returning
         // a CompletableFuture. Call thenAccept(), handle(), or check isDone() before calling get().
-//        ModelRenderable.builder()
-//                .setSource(this, R.raw.redpanda)
-//                .build()
-//                .thenAccept { renderable -> andyRenderable = renderable }
-//                .exceptionally { throwable ->
-//                    val toast = Toast.makeText(this, "Unable to load andy renderable", Toast.LENGTH_LONG)
-//                    toast.setGravity(Gravity.CENTER, 0, 0)
-//                    toast.show()
-//                    null
-//                }
 
-
-//        ViewRenderable.builder()
-//                .setView(this, R.layout.ar_test)
-//                //.setSizer {  }
-//                .build()
-//                .thenAccept { renderable -> andyRenderable = renderable }
-//                .exceptionally {
-//                    val toast = Toast.makeText(this, "Unable to load andy renderable", Toast.LENGTH_LONG)
-//                    toast.setGravity(Gravity.CENTER, 0, 0)
-//                    toast.show()
-//                    null
-//                }
         ViewRenderable.builder()
                 .setView(this, R.layout.ar_test)
                 .build()
@@ -98,23 +66,23 @@ class MainActivity : AppCompatActivity() {
 
         arFragment.setOnTapArPlaneListener { hitResult: HitResult, plane: Plane, motionEvent: MotionEvent ->
 
-            //            if (!isPlaced) {
+            val scene = arFragment.arSceneView.scene
+            scene.children.filterIsInstance<AnchorNode>().forEach(scene::removeChild)
+
             // Create the Anchor.
-            val anchor = hitResult.createAnchor()
-            val anchorNode = AnchorNode(anchor)
-//                val node : BaseTransformableNode? = null
-            anchorNode.setParent(arFragment.arSceneView.scene)
-//                node!!.setParent(anchorNode)
+            val anchorNode = AnchorNode(hitResult.createAnchor())
+            scene.addChild(anchorNode)
             Log.w("Anchor", "Parent set")
 
             // Create the transformable andy and add it to the anchor.
             val point = TransformableNode(arFragment.transformationSystem)
-            point.setParent(anchorNode)
+            anchorNode.addChild(point)
             point.renderable = loadedRenderable
+//            point.setOnTapListener { _, _ -> anchorNode.parent.removeChild(anchorNode) }
 
 //                if (plane.type == Plane.Type.VERTICAL) {
-            val planeNormal = plane.centerPose.yAxis.toV();
-            val upQuat = Quaternion.lookRotation(planeNormal, Vector3.up()).inverted()
+//            val planeNormal = plane.centerPose.yAxis.toV();
+//            val upQuat = Quaternion.lookRotation(planeNormal, Vector3.up()).inverted()
             when (plane.type) {
                 Plane.Type.HORIZONTAL_DOWNWARD_FACING -> {
 
@@ -123,14 +91,15 @@ class MainActivity : AppCompatActivity() {
                     point.localRotation = Quaternion.axisAngle(Vector3.right(), -90.0f)
                 }
                 Plane.Type.VERTICAL -> {
-//                    point.worldRotation = Quaternion.axisAngle(Vector3.forward(), 90.0f)
-//                    point.localRotation = Quaternion.axisAngle(Vector3.right(), -180.0f)
-                    point.localRotation =
-                            Quaternion.multiply(
-
-                                    Quaternion.axisAngle(Vector3.right(), -180.0f),
-                                    Quaternion.axisAngle(Vector3.up(), 180.0f)
-                            ).inverted()
+                    println("break")
+//                    point.worldRotation = Quaternion.axisAngle(Vector3.left(), 90.0f)
+//                    point.localRotation = Quaternion.axisAngle(Vector3.right(), -90.0f)
+//                    point.localRotation =
+//                            Quaternion.multiply(
+//
+//                                    Quaternion.axisAngle(Vector3.right(), -180.0f),
+//                                    Quaternion.axisAngle(Vector3.up(), 180.0f)
+//                            ).inverted()
 
 //                    point.localRotation = Quaternion.a(Vector3.right(), 90.0f)
                 }
@@ -148,8 +117,6 @@ class MainActivity : AppCompatActivity() {
 
             //point.scaleController.
             point.select()
-//                isPlaced = true
-//                Log.w("Anchor","Placed")
 //            }
 
         }
@@ -166,8 +133,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
         if (requestCode == REQUEST_IMAGE_GET && resultCode == RESULT_OK) {
-//            val bitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, data.data)
-//            val drawable = BitmapDrawable(this.resources, bitmap)
             val savedFile = fileCache(data.data)
             imageView.setImageBitmap(BitmapFactory.decodeFile(savedFile.absolutePath))
             Log.w("Bitmap", "Loaded")
@@ -227,7 +192,6 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-//TODO: load image file from storage on phone
 //TODO: reorganise app into multiple activities / components
 //TODO: scale image down/up, improve rotation for vertical plane
 fun FloatArray.toQ() = Quaternion(this[0], this[1], this[2], this[3])
