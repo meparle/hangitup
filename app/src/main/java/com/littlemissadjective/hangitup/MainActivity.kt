@@ -19,6 +19,7 @@ import com.google.ar.core.HitResult
 import com.google.ar.core.Plane
 import com.google.ar.sceneform.AnchorNode
 import com.google.ar.sceneform.math.Quaternion
+import com.google.ar.sceneform.math.Quaternion.*
 import com.google.ar.sceneform.math.Vector3
 import com.google.ar.sceneform.rendering.ViewRenderable
 import com.google.ar.sceneform.ux.ArFragment
@@ -88,18 +89,18 @@ class MainActivity : AppCompatActivity() {
 
                 }
                 Plane.Type.HORIZONTAL_UPWARD_FACING -> {
-                    point.localRotation = Quaternion.axisAngle(Vector3.right(), -90.0f)
+                    point.localRotation = axisAngle(Vector3.right(), -90.0f)
                 }
                 Plane.Type.VERTICAL -> {
                     println("break")
+//                    point.worldRotation = Quaternion.axisAngle(point.forward, 90.0f)
+//                    point.localRotation *= Quaternion.axisAngle(point.right, -90.0f)
 //                    point.worldRotation = Quaternion.axisAngle(Vector3.left(), 90.0f)
 //                    point.localRotation = Quaternion.axisAngle(Vector3.right(), -90.0f)
-//                    point.localRotation =
-//                            Quaternion.multiply(
-//
-//                                    Quaternion.axisAngle(Vector3.right(), -180.0f),
-//                                    Quaternion.axisAngle(Vector3.up(), 180.0f)
-//                            ).inverted()
+                    point.worldRotation =
+                            axisAngle(Vector3.forward(), -90.0f) *
+                            axisAngle(Vector3.right(), -90.0f) *
+                            axisAngle(Vector3.forward(), 90.0f)
 
 //                    point.localRotation = Quaternion.a(Vector3.right(), 90.0f)
                 }
@@ -115,7 +116,8 @@ class MainActivity : AppCompatActivity() {
 //                point.renderable = copyRenderable
 //                point.setParent(node)
 
-            //point.scaleController.
+//            point.scaleController.
+            point.localScale = point.localScale.scaled(0.5f)
             point.select()
 //            }
 
@@ -131,9 +133,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == REQUEST_IMAGE_GET && resultCode == RESULT_OK) {
-            val savedFile = fileCache(data.data)
+            val savedFile = fileCache(data!!.data)
             imageView.setImageBitmap(BitmapFactory.decodeFile(savedFile.absolutePath))
             Log.w("Bitmap", "Loaded")
         }
@@ -197,3 +199,5 @@ class MainActivity : AppCompatActivity() {
 fun FloatArray.toQ() = Quaternion(this[0], this[1], this[2], this[3])
 
 fun FloatArray.toV() = Vector3(this[0], this[1], this[2])
+
+operator fun Quaternion.times(other: Quaternion): Quaternion = multiply(this, other)
