@@ -36,8 +36,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var loadedRenderable: ViewRenderable
     private val REQUEST_IMAGE_GET = 1
 
-    override// CompletableFuture requires api level 24
-    // FutureReturnValueIgnored is not valid
+    override
     fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -47,9 +46,6 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_ux)
         arFragment = supportFragmentManager.findFragmentById(R.id.ux_fragment) as ArFragment
-
-        // When you build a Renderable, Sceneform loads its resources in the background while returning
-        // a CompletableFuture. Call thenAccept(), handle(), or check isDone() before calling get().
 
         ViewRenderable.builder()
                 .setView(this, R.layout.ar_test)
@@ -64,68 +60,73 @@ class MainActivity : AppCompatActivity() {
                     null
                 }
 
-
         arFragment.setOnTapArPlaneListener { hitResult: HitResult, plane: Plane, motionEvent: MotionEvent ->
-
-            val scene = arFragment.arSceneView.scene
-            scene.children.filterIsInstance<AnchorNode>().forEach(scene::removeChild)
-
-            // Create the Anchor.
-            val anchorNode = AnchorNode(hitResult.createAnchor())
-            scene.addChild(anchorNode)
-            Log.w("Anchor", "Parent set")
-
-            // Create the transformable andy and add it to the anchor.
-            val point = TransformableNode(arFragment.transformationSystem)
-            anchorNode.addChild(point)
-            point.renderable = loadedRenderable
-//            point.setOnTapListener { _, _ -> anchorNode.parent.removeChild(anchorNode) }
-
-//                if (plane.type == Plane.Type.VERTICAL) {
-//            val planeNormal = plane.centerPose.yAxis.toV();
-//            val upQuat = Quaternion.lookRotation(planeNormal, Vector3.up()).inverted()
-            when (plane.type) {
-                Plane.Type.HORIZONTAL_DOWNWARD_FACING -> {
-
-                }
-                Plane.Type.HORIZONTAL_UPWARD_FACING -> {
-                    point.localRotation = axisAngle(Vector3.right(), -90.0f)
-                }
-                Plane.Type.VERTICAL -> {
-                    println("break")
-//                    point.worldRotation = Quaternion.axisAngle(point.forward, 90.0f)
-//                    point.localRotation *= Quaternion.axisAngle(point.right, -90.0f)
-//                    point.worldRotation = Quaternion.axisAngle(Vector3.left(), 90.0f)
-//                    point.localRotation = Quaternion.axisAngle(Vector3.right(), -90.0f)
-                    point.worldRotation =
-                            axisAngle(Vector3.forward(), -90.0f) *
-                            axisAngle(Vector3.right(), -90.0f) *
-                            axisAngle(Vector3.forward(), 90.0f)
-
-//                    point.localRotation = Quaternion.a(Vector3.right(), 90.0f)
-                }
-            }
-//                    var anchorUp = anchorNode.left
-//                    point.setLookDirection(anchorUp)
-            Log.w("Look direction", "Changed to up")
-//                }
-//                var copyRenderable : ViewRenderable = andyRenderable!!.makeCopy()
-//                copyRenderable.setVerticalAlignment(ViewRenderable.VerticalAlignment.CENTER)
-//                var rotation1 : Quaternion = Quaternion.axisAngle(Vector3(0.0f, 1.0f, 0.0f), 90.0f)
-//                node.setWorldRotation(rotation1)
-//                point.renderable = copyRenderable
-//                point.setParent(node)
-
-//            point.scaleController.
-            point.localScale = point.localScale.scaled(0.5f)
-            point.select()
-//            }
-
+            placeImage(hitResult, plane)
         }
     }
 
+    fun placeImage(hitResult: HitResult, plane: Plane) {
+        val node = getNode(hitResult)
+        node.renderable = loadedRenderable
+        when (plane.type) {
+            Plane.Type.HORIZONTAL_DOWNWARD_FACING -> {
+
+            }
+            Plane.Type.HORIZONTAL_UPWARD_FACING -> {
+                node.localRotation = axisAngle(Vector3.right(), -90.0f)
+            }
+            Plane.Type.VERTICAL -> {
+                println("break")
+                //            val planeNormal = plane.centerPose.yAxis.toV();
+                //            val upQuat = Quaternion.lookRotation(planeNormal, Vector3.up()).inverted()
+                //
+                //                    point.worldRotation = Quaternion.axisAngle(point.forward, 90.0f)
+                //                    point.localRotation *= Quaternion.axisAngle(point.right, -90.0f)
+                //
+                //                    point.worldRotation = Quaternion.axisAngle(Vector3.left(), 90.0f)
+                //                    point.localRotation = Quaternion.axisAngle(Vector3.right(), -90.0f)
+                //
+                //                    var anchorUp = anchorNode.left
+                //                    point.setLookDirection(anchorUp)
+                //
+                //                    point.localRotation = Quaternion.a(Vector3.right(), 90.0f)
+                //
+                //                var copyRenderable : ViewRenderable = andyRenderable!!.makeCopy()
+                //                copyRenderable.setVerticalAlignment(ViewRenderable.VerticalAlignment.CENTER)
+                //                var rotation1 : Quaternion = Quaternion.axisAngle(Vector3(0.0f, 1.0f, 0.0f), 90.0f)
+                //                node.setWorldRotation(rotation1)
+                //                point.renderable = copyRenderable
+                //                point.setParent(node)
+                //
+                //            point.scaleController.
+                node.worldRotation =
+                        axisAngle(Vector3.forward(), -90.0f) *
+                        axisAngle(Vector3.right(), -90.0f) *
+                        axisAngle(Vector3.forward(), 90.0f)
+            }
+
+        }
+        Log.d("Look direction", "Changed to up")
+        node.localScale = node.localScale.scaled(0.5f)
+        node.select()
+    }
+
+    private fun getNode(hitResult: HitResult): TransformableNode {
+        val scene = arFragment.arSceneView.scene
+        scene.children.filterIsInstance<AnchorNode>().forEach(scene::removeChild)
+
+        val anchorNode = AnchorNode(hitResult.createAnchor())
+        scene.addChild(anchorNode)
+        Log.d("Anchor", "Parent set")
+
+        val point = TransformableNode(arFragment.transformationSystem)
+        anchorNode.addChild(point)
+
+        return point
+    }
+
     fun pickImage(v: View) {
-        Log.w("Picker", "Picked")
+        Log.d("Picker", "Picked")
         val intent = Intent(Intent.ACTION_GET_CONTENT)
         intent.type = "image/*"
         if (intent.resolveActivity(packageManager) != null) {
@@ -151,7 +152,7 @@ class MainActivity : AppCompatActivity() {
                     ins.copyTo(outs)
                 }
             }
-            Log.w("Bitmap", "Saved")
+            Log.d("Bitmap", "Saved")
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -195,7 +196,7 @@ class MainActivity : AppCompatActivity() {
 }
 
 //TODO: reorganise app into multiple activities / components
-//TODO: scale image down/up, improve rotation for vertical plane
+//TODO: improve rotation for vertical plane
 fun FloatArray.toQ() = Quaternion(this[0], this[1], this[2], this[3])
 
 fun FloatArray.toV() = Vector3(this[0], this[1], this[2])
