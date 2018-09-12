@@ -13,6 +13,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
 import android.widget.Toast
+import android.widget.ToggleButton
 import com.google.ar.core.HitResult
 import com.google.ar.core.Plane
 import com.google.ar.sceneform.AnchorNode
@@ -25,10 +26,17 @@ import java.io.File
 
 class MainActivity : AppCompatActivity() {
 
+    enum class MODE {
+        SELECT, PLACE
+    }
+
     private lateinit var arFragment: ArFragment
     private lateinit var imageView: ImageView
     private lateinit var loadedRenderable: ViewRenderable
+    private var currentMode = MODE.SELECT
     private val REQUEST_IMAGE_GET = 1
+    private var planeHit: HitResult? = null
+    private var floorEdge: HitResult? = null
 
     override
     fun onCreate(savedInstanceState: Bundle?) {
@@ -55,8 +63,27 @@ class MainActivity : AppCompatActivity() {
                 }
 
         arFragment.setOnTapArPlaneListener { hitResult: HitResult, plane: Plane, motionEvent: MotionEvent ->
-            placeImage(hitResult, plane)
+
+            if (currentMode == MODE.PLACE) {
+                placeImage(hitResult, plane)
+            } else if (currentMode == MODE.SELECT) {
+                if (planeHit == null) {
+                    Toast.makeText(MainActivity@ this, "Tap on the wall", Toast.LENGTH_SHORT).show()
+                    planeHit = hitResult
+                } else if (floorEdge == null) {
+                    Toast.makeText(MainActivity@ this, "Tap on where the floor meets the wall", Toast.LENGTH_SHORT).show()
+                    floorEdge = hitResult
+                    suggestPlacementPoint(planeHit!!, floorEdge!!)
+                    planeHit = null
+                    floorEdge = null
+                }
+
+            }
         }
+    }
+
+    fun suggestPlacementPoint(wallPoint:HitResult, floorEdgePoint:HitResult) {
+        //TODO: maths
     }
 
     fun placeImage(hitResult: HitResult, plane: Plane) {
@@ -80,6 +107,10 @@ class MainActivity : AppCompatActivity() {
         node.select()
     }
 
+    /*
+    Takes a hitResult, makes an AnchorNode out of it
+    gives a TransformableNode which can be rotated that is a child of AnchorNode
+     */
     private fun getNode(hitResult: HitResult): TransformableNode {
         val scene = arFragment.arSceneView.scene
         scene.children.filterIsInstance<AnchorNode>().forEach(scene::removeChild)
@@ -129,13 +160,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun measureUp(v: View) {
-        Log.d("Measure", "Started")
-        //tell user to tap the vertical plane they want to place the item on, then tap where floor hits wall
-        //place image 57 inches above where tapped
+        val toggle = v as ToggleButton
+        if (toggle.isChecked) {
+            Log.d("Measure", "Started")
+            currentMode = MODE.SELECT
+            //tell user to tap the vertical plane they want to place the item on (collision), then tap where floor hits wall
+            //place anchor / image node 57 inches above where tapped on plane
 
-        //tap one indicates plane / stores it
-        //tap two places node (or anchor?), system calculates where 57 inches up intersects with detected plane, places new anchor
-        //detaches old anchor and places picture centred on new anchor
+            //tap one indicates plane / stores it as val using hitTest(float,float) or hitTest(MotionEvent) .getTrackable()
+            //tap two places node (or anchor?), system calculates where 57 inches up intersects with detected plane, places new anchor
+            //detaches old anchor and places picture centred on new anchor
+        }
+        else {
+            Log.d("Place", "Started")
+            currentMode = MODE.PLACE
+        }
     }
 
     companion object {
@@ -165,7 +204,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
-//TODO: wire up button, takes one tap for wall intersection with floor, then centres 57 inches (1.4478) above
+//TODO: maths to centre image 57 inches (1.4478) above
 //TODO: model-view-presenter
 //TODO: tests
 //fun FloatArray.toQ() = Quaternion(this[0], this[1], this[2], this[3])

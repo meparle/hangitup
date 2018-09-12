@@ -27,22 +27,22 @@
 
   <Button
       android:id="@+id/button_select"
-      android:text="@string/select"
+      android:text="@string/selectImage"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_gravity="start|bottom"
       android:onClick="pickImage"
       />
 
-    <Button
-        android:id="@+id/button_suggest_placement"
-        android:text="@string/suggest_placement"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="end|bottom"
-        android:onClick="measureUp"
-        />
 
+    <ToggleButton
+        android:id="@+id/toggleMode"
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:textOn="@string/select"
+        android:textOff="@string/place"
+        android:onClick="measureUp"
+    />
 </FrameLayout>
 
 
