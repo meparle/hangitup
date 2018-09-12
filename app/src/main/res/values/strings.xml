@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">HangItUp</string>
     <string name="select">Select</string>
+    <string name="suggest_placement">Suggest Placement</string>
 </resources>

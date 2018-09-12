@@ -6,8 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Build
-import android.os.Build.VERSION_CODES
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
@@ -18,17 +16,13 @@ import android.widget.Toast
 import com.google.ar.core.HitResult
 import com.google.ar.core.Plane
 import com.google.ar.sceneform.AnchorNode
-import com.google.ar.sceneform.math.Quaternion
-import com.google.ar.sceneform.math.Quaternion.*
+import com.google.ar.sceneform.math.Quaternion.axisAngle
 import com.google.ar.sceneform.math.Vector3
 import com.google.ar.sceneform.rendering.ViewRenderable
 import com.google.ar.sceneform.ux.ArFragment
 import com.google.ar.sceneform.ux.TransformableNode
 import java.io.File
 
-/**
- * This is an example activity that uses the Sceneform UX package to make common AR tasks easier.
- */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var arFragment: ArFragment
@@ -70,44 +64,19 @@ class MainActivity : AppCompatActivity() {
         node.renderable = loadedRenderable
         when (plane.type) {
             Plane.Type.HORIZONTAL_DOWNWARD_FACING -> {
-
             }
             Plane.Type.HORIZONTAL_UPWARD_FACING -> {
                 node.localRotation = axisAngle(Vector3.right(), -90.0f)
             }
             Plane.Type.VERTICAL -> {
-                println("break")
-                //            val planeNormal = plane.centerPose.yAxis.toV();
-                //            val upQuat = Quaternion.lookRotation(planeNormal, Vector3.up()).inverted()
-                //
-                //                    point.worldRotation = Quaternion.axisAngle(point.forward, 90.0f)
-                //                    point.localRotation *= Quaternion.axisAngle(point.right, -90.0f)
-                //
-                //                    point.worldRotation = Quaternion.axisAngle(Vector3.left(), 90.0f)
-                //                    point.localRotation = Quaternion.axisAngle(Vector3.right(), -90.0f)
-                //
-                //                    var anchorUp = anchorNode.left
-                //                    point.setLookDirection(anchorUp)
-                //
-                //                    point.localRotation = Quaternion.a(Vector3.right(), 90.0f)
-                //
-                //                var copyRenderable : ViewRenderable = andyRenderable!!.makeCopy()
-                //                copyRenderable.setVerticalAlignment(ViewRenderable.VerticalAlignment.CENTER)
-                //                var rotation1 : Quaternion = Quaternion.axisAngle(Vector3(0.0f, 1.0f, 0.0f), 90.0f)
-                //                node.setWorldRotation(rotation1)
-                //                point.renderable = copyRenderable
-                //                point.setParent(node)
-                //
-                //            point.scaleController.
-                node.worldRotation =
-                        axisAngle(Vector3.forward(), -90.0f) *
-                        axisAngle(Vector3.right(), -90.0f) *
-                        axisAngle(Vector3.forward(), 90.0f)
+                //val planeNormal = plane.centerPose.yAxis.toV();
+                //val upQuat = Quaternion.lookRotation(planeNormal, Vector3.up()).inverted()
+                node.setLookDirection(node.down,node.back)
+                //node.scaleController.
             }
-
         }
         Log.d("Look direction", "Changed to up")
-        node.localScale = node.localScale.scaled(0.5f)
+        //node.localScale = node.localScale.scaled(0.1f) //appears to do nothing!
         node.select()
     }
 
@@ -159,6 +128,16 @@ class MainActivity : AppCompatActivity() {
         return file
     }
 
+    fun measureUp(v: View) {
+        Log.d("Measure", "Started")
+        //tell user to tap the vertical plane they want to place the item on, then tap where floor hits wall
+        //place image 57 inches above where tapped
+
+        //tap one indicates plane / stores it
+        //tap two places node (or anchor?), system calculates where 57 inches up intersects with detected plane, places new anchor
+        //detaches old anchor and places picture centred on new anchor
+    }
+
     companion object {
         private val TAG = MainActivity::class.java.getSimpleName()
         private val MIN_OPENGL_VERSION = 3.1
@@ -167,19 +146,11 @@ class MainActivity : AppCompatActivity() {
          * Returns false and displays an error message if Sceneform can not run, true if Sceneform can run
          * on this device.
          *
-         *
-         * Sceneform requires Android N on the device as well as OpenGL 3.1 capabilities.
-         *
+         * Sceneform requires OpenGL 3.1 capabilities.
          *
          * Finishes the activity if Sceneform can not run
          */
         fun checkIsSupportedDeviceOrFinish(activity: Activity): Boolean {
-            if (Build.VERSION.SDK_INT < VERSION_CODES.N) {
-                Log.e(TAG, "Sceneform requires Android N or later")
-                Toast.makeText(activity, "Sceneform requires Android N or later", Toast.LENGTH_LONG).show()
-                activity.finish()
-                return false
-            }
             val openGlVersionString = (activity.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager)
                     .deviceConfigurationInfo
                     .glEsVersion
@@ -194,11 +165,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
-
-//TODO: reorganise app into multiple activities / components
-//TODO: improve rotation for vertical plane
-fun FloatArray.toQ() = Quaternion(this[0], this[1], this[2], this[3])
-
-fun FloatArray.toV() = Vector3(this[0], this[1], this[2])
-
-operator fun Quaternion.times(other: Quaternion): Quaternion = multiply(this, other)
+//TODO: wire up button, takes one tap for wall intersection with floor, then centres 57 inches (1.4478) above
+//TODO: model-view-presenter
+//TODO: tests
+//fun FloatArray.toQ() = Quaternion(this[0], this[1], this[2], this[3])
+//fun FloatArray.toV() = Vector3(this[0], this[1], this[2])
+//operator fun Quaternion.times(other: Quaternion): Quaternion = multiply(this, other)

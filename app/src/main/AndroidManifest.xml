@@ -1,48 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-xmlns:tools="http://schemas.android.com/tools"
-package="com.littlemissadjective.hangitup">
-<!-- Always needed for AR. -->
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.littlemissadjective.hangitup">
 
-<uses-permission android:name="android.permission.CAMERA" />
-<!-- This tag indicates that this application requires ARCore. This results in the application
-    only being visible in the Google Play Store on devices that support ARCore. -->
-<uses-feature android:name="android.hardware.camera.ar" android:required="true"/>
-<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-<!--<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />-->
+    <!-- Always needed for AR. -->
 
-<application
-    android:allowBackup="false"
-    android:icon="@drawable/ic_launcher"
-    android:label="@string/app_name"
-    android:theme="@style/AppTheme"
-    android:usesCleartextTraffic="false"
-    tools:ignore="GoogleAppIndexingWarning">
-    <!-- This tag indicates that this application requires ARCore. This results in the
-        application only being visible in the Google Play Store on devices that support
-        ARCore. -->
-    <meta-data android:name="com.google.ar.core" android:value="required" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!--
+     This tag indicates that this application requires ARCore. This results in the application
+    only being visible in the Google Play Store on devices that support ARCore.
+    -->
+    <uses-feature
+        android:name="android.hardware.camera.ar"
+        android:required="true" />
 
-    <activity
-        android:name=".MainActivity"
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" /> -->
+    <application
+        android:allowBackup="false"
+        android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
-        android:configChanges="orientation|screenSize"
-        android:theme="@style/Theme.AppCompat.NoActionBar"
-        android:screenOrientation="locked"
-        android:exported="true">
-        <intent-filter>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.LAUNCHER" />
-        </intent-filter>
-        <intent-filter>
-            <action android:name="android.intent.action.GET_CONTENT" />
-            <data android:mimeType="image/*" />
-            <category android:name="android.intent.category.DEFAULT" />
-            <!-- The OPENABLE category declares that the returned file is accessible
+        android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="false"
+        tools:ignore="GoogleAppIndexingWarning">
+
+        <!--
+         This tag indicates that this application requires ARCore. This results in the
+        application only being visible in the Google Play Store on devices that support
+        ARCore.
+        -->
+        <meta-data
+            android:name="com.google.ar.core"
+            android:value="required" />
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:screenOrientation="locked"
+            android:theme="@style/Theme.AppCompat.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.GET_CONTENT" />
+
+                <data android:mimeType="image/*" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <!--
+                 The OPENABLE category declares that the returned file is accessible
                  from a content provider that supports OpenableColumns
-                 and ContentResolver.openFileDescriptor() -->
-            <category android:name="android.intent.category.OPENABLE" />
-        </intent-filter>
-    </activity>
-</application>
+                 and ContentResolver.openFileDescriptor()
+                -->
+                <category android:name="android.intent.category.OPENABLE" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".SensorActivity"></activity>
+    </application>
+
 </manifest>
