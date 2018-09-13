@@ -23,6 +23,7 @@ import com.google.ar.sceneform.rendering.ViewRenderable
 import com.google.ar.sceneform.ux.ArFragment
 import com.google.ar.sceneform.ux.TransformableNode
 import java.io.File
+import kotlin.math.pow
 
 class MainActivity : AppCompatActivity() {
 
@@ -33,6 +34,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var arFragment: ArFragment
     private lateinit var imageView: ImageView
     private lateinit var loadedRenderable: ViewRenderable
+    private lateinit var placementNode: TransformableNode
     private var currentMode = MODE.SELECT
     private val REQUEST_IMAGE_GET = 1
     private var planeHit: HitResult? = null
@@ -71,7 +73,7 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(MainActivity@ this, "Tap on the wall", Toast.LENGTH_SHORT).show()
                     planeHit = hitResult
                 } else if (floorEdge == null) {
-                    Toast.makeText(MainActivity@ this, "Tap on where the floor meets the wall", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(MainActivity@ this, "Rotate phone and tap on where the floor meets the wall", Toast.LENGTH_SHORT).show()
                     floorEdge = hitResult
                     suggestPlacementPoint(planeHit!!, floorEdge!!)
                     planeHit = null
@@ -83,7 +85,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun suggestPlacementPoint(wallPoint:HitResult, floorEdgePoint:HitResult) {
-        //TODO: maths
+        val plane = wallPoint.trackable
+        val distToWall = wallPoint.distance
+        val distToFloorEdge = floorEdgePoint.distance
+        val distBetweenPoints : Float = kotlin.math.sqrt((distToFloorEdge.pow(2)) - (distToWall.pow(2)))
+        if (distBetweenPoints.equals(1.4478)) {
+            //placementNode = getNode(wallPoint)
+            placeImage(wallPoint,plane as Plane)
+
+        } else if (distBetweenPoints < 1.4478) {
+            //translate WallPoint up along the plane by 1.4478 - distBetweenPoints
+            //plane.createAnchor()
+        } else {
+            //translate WallPoint down along the plane by distBetweenPoints - 1.4478
+            //plane.createAnchor()
+        }
+        Log.d("Suggested placement", "Done")
+        //TODO: finish maths
     }
 
     fun placeImage(hitResult: HitResult, plane: Plane) {
