@@ -28,14 +28,14 @@ import kotlin.math.pow
 class MainActivity : AppCompatActivity() {
 
     enum class MODE {
-        SELECT, PLACE
+        SELF_PLACE, SUGGEST_PLACE
     }
 
     private lateinit var arFragment: ArFragment
     private lateinit var imageView: ImageView
     private lateinit var loadedRenderable: ViewRenderable
     private lateinit var placementNode: TransformableNode
-    private var currentMode = MODE.SELECT
+    private var currentMode = MODE.SELF_PLACE
     private val REQUEST_IMAGE_GET = 1
     private var planeHit: HitResult? = null
     private var floorEdge: HitResult? = null
@@ -66,14 +66,13 @@ class MainActivity : AppCompatActivity() {
 
         arFragment.setOnTapArPlaneListener { hitResult: HitResult, plane: Plane, motionEvent: MotionEvent ->
 
-            if (currentMode == MODE.PLACE) {
+            if (currentMode == MODE.SELF_PLACE) {
                 placeImage(hitResult, plane)
-            } else if (currentMode == MODE.SELECT) {
+            } else if (currentMode == MODE.SUGGEST_PLACE) {
                 if (planeHit == null) {
-                    Toast.makeText(MainActivity@ this, "Tap on the wall", Toast.LENGTH_SHORT).show()
                     planeHit = hitResult
-                } else if (floorEdge == null) {
                     Toast.makeText(MainActivity@ this, "Rotate phone and tap on where the floor meets the wall", Toast.LENGTH_SHORT).show()
+                } else if (floorEdge == null) {
                     floorEdge = hitResult
                     suggestPlacementPoint(planeHit!!, floorEdge!!)
                     planeHit = null
@@ -87,19 +86,24 @@ class MainActivity : AppCompatActivity() {
     fun suggestPlacementPoint(wallPoint:HitResult, floorEdgePoint:HitResult) {
         val plane = wallPoint.trackable
         val distToWall = wallPoint.distance
+        Log.d("Suggested placement", "distance to wall $distToWall")
         val distToFloorEdge = floorEdgePoint.distance
+        Log.d("Suggested placement", "distance to floor edge $distToFloorEdge")
         val distBetweenPoints : Float = kotlin.math.sqrt((distToFloorEdge.pow(2)) - (distToWall.pow(2)))
-        if (distBetweenPoints.equals(1.4478)) {
-            //placementNode = getNode(wallPoint)
-            placeImage(wallPoint,plane as Plane)
-
-        } else if (distBetweenPoints < 1.4478) {
-            //translate WallPoint up along the plane by 1.4478 - distBetweenPoints
-            //plane.createAnchor()
-        } else {
-            //translate WallPoint down along the plane by distBetweenPoints - 1.4478
-            //plane.createAnchor()
-        }
+        Log.d("Suggested placement", "distance between two $distBetweenPoints")
+//        when {
+//            distBetweenPoints.equals(1.4478) -> //placementNode = getNode(wallPoint)
+                placeImage(wallPoint,plane as Plane)
+//
+//            distBetweenPoints < 1.4478 -> {
+//                //translate WallPoint up along the plane by 1.4478 - distBetweenPoints
+//                //plane.createAnchor()
+//            }
+//            else -> {
+//                //translate WallPoint down along the plane by distBetweenPoints - 1.4478
+//                //plane.createAnchor()
+//            }
+//        }
         Log.d("Suggested placement", "Done")
         //TODO: finish maths
     }
@@ -181,7 +185,8 @@ class MainActivity : AppCompatActivity() {
         val toggle = v as ToggleButton
         if (toggle.isChecked) {
             Log.d("Measure", "Started")
-            currentMode = MODE.SELECT
+            Toast.makeText(MainActivity@ this, "Hold phone parallel to the wall and tap on the wall", Toast.LENGTH_SHORT).show()
+            currentMode = MODE.SUGGEST_PLACE
             //tell user to tap the vertical plane they want to place the item on (collision), then tap where floor hits wall
             //place anchor / image node 57 inches above where tapped on plane
 
@@ -191,7 +196,7 @@ class MainActivity : AppCompatActivity() {
         }
         else {
             Log.d("Place", "Started")
-            currentMode = MODE.PLACE
+            currentMode = MODE.SELF_PLACE
         }
     }
 

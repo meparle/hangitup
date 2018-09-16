@@ -39,8 +39,8 @@
         android:id="@+id/toggleMode"
         android:layout_height="wrap_content"
         android:layout_width="wrap_content"
-        android:textOn="@string/select"
-        android:textOff="@string/place"
+        android:textOn="@string/self"
+        android:textOff="@string/suggest"
         android:onClick="measureUp"
     />
 </FrameLayout>
