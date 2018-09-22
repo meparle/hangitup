@@ -25,7 +25,7 @@ class MainView @JvmOverloads constructor(
     private lateinit var loadedRenderable: ViewRenderable
     private lateinit var imageView: ImageView
     private lateinit var arFragment: ArFragment
-    private lateinit var listener: ViewListener
+    lateinit var listener: ViewListener
 
     interface ViewListener {
         fun onTapArPlane(hitResult: HitResult, plane: Plane)

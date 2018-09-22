@@ -9,36 +9,19 @@ import android.net.Uri
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
-import android.view.MotionEvent
-import android.view.View
-import android.widget.ImageView
 import android.widget.Toast
-import android.widget.ToggleButton
 import com.google.ar.core.HitResult
 import com.google.ar.core.Plane
-import com.google.ar.sceneform.AnchorNode
-import com.google.ar.sceneform.math.Quaternion.axisAngle
-import com.google.ar.sceneform.math.Vector3
-import com.google.ar.sceneform.rendering.ViewRenderable
-import com.google.ar.sceneform.ux.ArFragment
-import com.google.ar.sceneform.ux.TransformableNode
 import java.io.File
 import kotlin.math.pow
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), MainView.ViewListener {
 
-    enum class MODE {
-        SELF_PLACE, SUGGEST_PLACE
-    }
-
-    private lateinit var arFragment: ArFragment
-    private lateinit var imageView: ImageView
-    private lateinit var loadedRenderable: ViewRenderable
-    private lateinit var placementNode: TransformableNode
-    private var currentMode = MODE.SELF_PLACE
+    private lateinit var mainView: MainView
     private val REQUEST_IMAGE_GET = 1
     private var planeHit: HitResult? = null
     private var floorEdge: HitResult? = null
+    private var state = State()
 
     override
     fun onCreate(savedInstanceState: Bundle?) {
@@ -49,117 +32,42 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContentView(R.layout.activity_ux)
-        arFragment = supportFragmentManager.findFragmentById(R.id.ux_fragment) as ArFragment
-
-        ViewRenderable.builder()
-                .setView(this, R.layout.ar_test)
-                .build()
-                .thenAccept { renderable ->
-                    Log.w("Load File", "loaded saved renderable")
-                    imageView = renderable.view.findViewById<ImageView>(R.id.ux_fragment)
-                    loadedRenderable = renderable
-                }
-                .exceptionally {
-                    Log.w("Load File", "Unable to load saved renderable", it)
-                    null
-                }
-
-        arFragment.setOnTapArPlaneListener { hitResult: HitResult, plane: Plane, motionEvent: MotionEvent ->
-
-            if (currentMode == MODE.SELF_PLACE) {
-                placeImage(hitResult, plane)
-            } else if (currentMode == MODE.SUGGEST_PLACE) {
-                if (planeHit == null) {
-                    planeHit = hitResult
-                    Toast.makeText(MainActivity@ this, "Rotate phone and tap on where the floor meets the wall", Toast.LENGTH_SHORT).show()
-                } else if (floorEdge == null) {
-                    floorEdge = hitResult
-                    suggestPlacementPoint(planeHit!!, floorEdge!!)
-                    planeHit = null
-                    floorEdge = null
-                }
-
-            }
-        }
+        mainView = findViewById(R.id.main_view)
+        mainView.listener = this
     }
 
     fun suggestPlacementPoint(wallPoint:HitResult, floorEdgePoint:HitResult) {
         val plane = wallPoint.trackable
+        val wallPose = wallPoint.hitPose
+        Log.d("Suggested placement", "wall point translation ${wallPose.extractTranslation()}")
+        Log.d("Suggested placement", "wall point rotation ${wallPose.extractRotation()}")
         val distToWall = wallPoint.distance
         Log.d("Suggested placement", "distance to wall $distToWall")
         val distToFloorEdge = floorEdgePoint.distance
         Log.d("Suggested placement", "distance to floor edge $distToFloorEdge")
         val distBetweenPoints : Float = kotlin.math.sqrt((distToFloorEdge.pow(2)) - (distToWall.pow(2)))
         Log.d("Suggested placement", "distance between two $distBetweenPoints")
+        //make a float array to feed into makeTranslation
 //        when {
-//            distBetweenPoints.equals(1.4478) -> //placementNode = getNode(wallPoint)
-                placeImage(wallPoint,plane as Plane)
-//
-//            distBetweenPoints < 1.4478 -> {
-//                //translate WallPoint up along the plane by 1.4478 - distBetweenPoints
+//            distBetweenPoints.equals(state.perfectHeight) -> //placementNode = getNode(wallPoint)
+//                placeImage(wallPoint,plane as Plane)
+              mainView.placeImage(plane as Plane, wallPose, (state.perfectHeight - distBetweenPoints).toFloat())
+//            distBetweenPoints < state.perfectHeight -> {
+//                //translate WallPoint up along the plane by state.perfectHeight - distBetweenPoints
 //                //plane.createAnchor()
 //            }
 //            else -> {
-//                //translate WallPoint down along the plane by distBetweenPoints - 1.4478
+//                //translate WallPoint down along the plane by distBetweenPoints - state.perfectHeight
 //                //plane.createAnchor()
 //            }
 //        }
         Log.d("Suggested placement", "Done")
-        //TODO: finish maths
-    }
-
-    fun placeImage(hitResult: HitResult, plane: Plane) {
-        val node = getNode(hitResult)
-        node.renderable = loadedRenderable
-        when (plane.type) {
-            Plane.Type.HORIZONTAL_DOWNWARD_FACING -> {
-            }
-            Plane.Type.HORIZONTAL_UPWARD_FACING -> {
-                node.localRotation = axisAngle(Vector3.right(), -90.0f)
-            }
-            Plane.Type.VERTICAL -> {
-                //val planeNormal = plane.centerPose.yAxis.toV();
-                //val upQuat = Quaternion.lookRotation(planeNormal, Vector3.up()).inverted()
-                node.setLookDirection(node.down,node.back)
-                //node.scaleController.
-            }
-        }
-        Log.d("Look direction", "Changed to up")
-        //node.localScale = node.localScale.scaled(0.1f) //appears to do nothing!
-        node.select()
-    }
-
-    /*
-    Takes a hitResult, makes an AnchorNode out of it
-    gives a TransformableNode which can be rotated that is a child of AnchorNode
-     */
-    private fun getNode(hitResult: HitResult): TransformableNode {
-        val scene = arFragment.arSceneView.scene
-        scene.children.filterIsInstance<AnchorNode>().forEach(scene::removeChild)
-
-        val anchorNode = AnchorNode(hitResult.createAnchor())
-        scene.addChild(anchorNode)
-        Log.d("Anchor", "Parent set")
-
-        val point = TransformableNode(arFragment.transformationSystem)
-        anchorNode.addChild(point)
-
-        return point
-    }
-
-    fun pickImage(v: View) {
-        Log.d("Picker", "Picked")
-        val intent = Intent(Intent.ACTION_GET_CONTENT)
-        intent.type = "image/*"
-        if (intent.resolveActivity(packageManager) != null) {
-            startActivityForResult(intent, REQUEST_IMAGE_GET)
-        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == REQUEST_IMAGE_GET && resultCode == RESULT_OK) {
             val savedFile = fileCache(data!!.data)
-            imageView.setImageBitmap(BitmapFactory.decodeFile(savedFile.absolutePath))
+            mainView.setImage(BitmapFactory.decodeFile(savedFile.absolutePath))
             Log.w("Bitmap", "Loaded")
         }
     }
@@ -181,22 +89,43 @@ class MainActivity : AppCompatActivity() {
         return file
     }
 
-    fun measureUp(v: View) {
-        val toggle = v as ToggleButton
-        if (toggle.isChecked) {
-            Log.d("Measure", "Started")
-            Toast.makeText(MainActivity@ this, "Hold phone parallel to the wall and tap on the wall", Toast.LENGTH_SHORT).show()
-            currentMode = MODE.SUGGEST_PLACE
-            //tell user to tap the vertical plane they want to place the item on (collision), then tap where floor hits wall
-            //place anchor / image node 57 inches above where tapped on plane
-
-            //tap one indicates plane / stores it as val using hitTest(float,float) or hitTest(MotionEvent) .getTrackable()
-            //tap two places node (or anchor?), system calculates where 57 inches up intersects with detected plane, places new anchor
-            //detaches old anchor and places picture centred on new anchor
+    override fun onTapArPlane(hitResult: HitResult, plane: Plane) {
+        if (state.mode == State.MODE.SELF_PLACE) {
+            mainView.placeImage(hitResult, plane)
+        } else if (state.mode == State.MODE.SUGGEST_PLACE) {
+            if (planeHit == null) {
+                planeHit = hitResult
+                Toast.makeText(this, "Rotate phone and tap on where the floor meets the wall", Toast.LENGTH_SHORT).show()
+            } else if (floorEdge == null) {
+                floorEdge = hitResult
+                suggestPlacementPoint(planeHit!!, floorEdge!!)
+                planeHit = null
+                floorEdge = null
+            }
         }
-        else {
-            Log.d("Place", "Started")
-            currentMode = MODE.SELF_PLACE
+    }
+
+    override fun onPickImage() {
+        Log.d("Picker", "Picked")
+        val intent = Intent(Intent.ACTION_GET_CONTENT)
+        intent.type = "image/*"
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivityForResult(intent, REQUEST_IMAGE_GET)
+        }
+    }
+
+    /*
+    Tap one indicates plane / stores it as hitResult.getTrackable()
+    Tap two stores HitResult of where wall meets floor
+    System calculates where perfectHeight intersects with detected plane up from wall tap, places new anchor
+    Picture appears centred on new anchor
+    */
+    override fun setMode(mode: State.MODE) {
+        if (mode == State.MODE.SUGGEST_PLACE) {
+            Toast.makeText(this, "Hold phone parallel to the wall and tap on the wall", Toast.LENGTH_SHORT).show()
+            state.mode = State.MODE.SUGGEST_PLACE
+        } else {
+            state.mode = State.MODE.SELF_PLACE
         }
     }
 
@@ -227,9 +156,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
-//TODO: maths to centre image 57 inches (1.4478) above
-//TODO: model-view-presenter
-//TODO: tests
+
 //fun FloatArray.toQ() = Quaternion(this[0], this[1], this[2], this[3])
 //fun FloatArray.toV() = Vector3(this[0], this[1], this[2])
 //operator fun Quaternion.times(other: Quaternion): Quaternion = multiply(this, other)
