@@ -6,21 +6,14 @@ import android.support.test.espresso.action.ViewActions.click
 import android.support.test.espresso.assertion.ViewAssertions.matches
 import android.support.test.espresso.matcher.ViewMatchers.withId
 import android.support.test.espresso.matcher.ViewMatchers.withText
-import android.support.test.runner.AndroidJUnit4
 import android.support.test.rule.ActivityTestRule
-
+import android.support.test.runner.AndroidJUnit4
+import org.junit.Assert.assertEquals
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-import org.junit.Assert.*
-import org.junit.Before
-import org.junit.Rule
-
-/**
- * Instrumented test, which will execute on an Android device.
- *
- * See [testing documentation](http://d.android.com/tools/testing).
- */
+/** Instrumented test of {@link MainActivity}. */
 @RunWith(AndroidJUnit4::class)
 class MainActivityUITest {
 
@@ -28,10 +21,9 @@ class MainActivityUITest {
     var mActivityRule: ActivityTestRule<MainActivity> = ActivityTestRule(MainActivity::class.java)
 
     @Test
-    fun useAppContext() {
-        // Context of the app under test.
+    fun packageName() {
         val appContext = InstrumentationRegistry.getTargetContext()
-        assertEquals("littlemissadjective.com.hangitup", appContext.packageName)
+        assertEquals("com.littlemissadjective.hangitup", appContext.packageName)
     }
 
     @Test
@@ -41,4 +33,4 @@ class MainActivityUITest {
                 .perform(click())
                 .check(matches(withText("Self Place Mode")))
     }
-}
+} 
