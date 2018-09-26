@@ -1,9 +1,14 @@
 package com.littlemissadjective.hangitup
 
+import android.content.Intent
+import android.graphics.Bitmap
+import android.net.Uri
+import android.support.v7.app.AppCompatActivity
 import com.google.ar.core.HitResult
 import com.google.ar.core.Plane
 import com.google.ar.core.Pose
 import com.littlemissadjective.hangitup.MainActivity.Companion.PERFECT_HEIGHT
+import junit.framework.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,14 +20,14 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadows.ShadowContentResolver
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 
-/**
- * Example local unit test, which will execute on the development machine (host).
- *
- * See [testing documentation](http://d.android.com/tools/testing).
- */
+/** Unit test for {@link MainActivity}. */
 @RunWith(RobolectricTestRunner::class)
-class ExampleUnitTest {
+class MainActivityTest {
 
     private val mockHR1 = mock(HitResult::class.java)
     private val mockHR2 = mock(HitResult::class.java)
@@ -50,7 +55,6 @@ class ExampleUnitTest {
         // User taps mode toggle
         activity.setMode(State.Mode.SUGGEST_PLACE)
 
-        // TODO: Maybe set up behaviors for the poses and planes too
         Mockito.`when`(mockHR1.hitPose).thenReturn(mock(Pose::class.java))
         Mockito.`when`(mockHR1.trackable).thenReturn(mock(Plane::class.java))
         Mockito.`when`(mockHR2.hitPose).thenReturn(mock(Pose::class.java))
@@ -64,23 +68,38 @@ class ExampleUnitTest {
         activity.onTapArPlane(mockHR1, mockPlane)
         activity.onTapArPlane(mockHR2, mockPlane)
 
-        // TODO: Assert on the actual pose/plane if necessary
         verify(mockView).placeImage(any(), any(), eq((PERFECT_HEIGHT - 4f).toFloat()))
     }
 
     @Test
-    fun saveFile() {
-        //assuming a Uri, does fileCache() return a File
+    fun selfPlace() {
+        activity.setMode(State.Mode.SELF_PLACE)
+        activity.onTapArPlane(mockHR1, mockPlane)
+        verify(mockView).placeImage(any(), any())
     }
 
     @Test
     fun isIntentFired() {
-        //assuming you click on Select Image, is Intent fired
-        val intent = Shadows.shadowOf(RuntimeEnvironment.application).nextStartedActivity
+        // Simulate click image picker button
+        activity.onPickImage()
+        val actualIntent = Shadows.shadowOf(RuntimeEnvironment.application).nextStartedActivity
+        assertEquals(Intent.ACTION_GET_CONTENT, actualIntent.action)
+        assertEquals("image/*", actualIntent.type)
     }
 
     @Test
-    fun modeChange() {
-        //assuming you click on mode, does mode change (query State to find out)
+    fun isImageSet() {
+        val shadowContentResolver : ShadowContentResolver = shadowOf(RuntimeEnvironment.application.contentResolver)
+        val uri = Uri.parse("file://foo.png")
+        val bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8)
+        val outputStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG,100,outputStream)
+        val inputStream = ByteArrayInputStream(outputStream.toByteArray())
+        shadowContentResolver.registerInputStream(uri, inputStream)
+        val dataIntent = Intent()
+        dataIntent.data = uri
+        activity.onActivityResult(MainActivity.REQUEST_IMAGE_GET, AppCompatActivity.RESULT_OK, dataIntent)
+        verify(mockView).setImage(any())
     }
+
 }

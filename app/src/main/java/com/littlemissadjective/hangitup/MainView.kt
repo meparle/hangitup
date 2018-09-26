@@ -18,29 +18,33 @@ import com.google.ar.sceneform.rendering.ViewRenderable
 import com.google.ar.sceneform.ux.ArFragment
 import com.google.ar.sceneform.ux.TransformableNode
 
+/**
+ * View representing the entire app UI.
+ *
+ * <p>Receives updates from {@link MainActivity} and passes user interaction events back through the
+ * {@link IMainView.ViewListener}, which in practice is always the activity.
+ */
 class MainView @JvmOverloads constructor(
         context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : FrameLayout(context, attrs, defStyleAttr) {
+) : FrameLayout(context, attrs, defStyleAttr), IMainView {
 
     private lateinit var loadedRenderable: ViewRenderable
     private lateinit var imageView: ImageView
     private lateinit var arFragment: ArFragment
-    lateinit var listener: ViewListener
+    private lateinit var _listener: IMainView.ViewListener
 
-    interface ViewListener {
-        fun onTapArPlane(hitResult: HitResult, plane: Plane)
-        fun onPickImage()
-        fun setMode(mode: State.MODE)
-    }
+    override var listener: IMainView.ViewListener
+        get() = _listener
+        set(value) {_listener = value}
 
     override fun onFinishInflate() {
         super.onFinishInflate()
-        findViewById<Button>(R.id.button_select).setOnClickListener {v: View ->  listener.onPickImage()  }
-        findViewById<ToggleButton>(R.id.toggle_mode).setOnClickListener {v: View -> run { measureUp(v) } }
+        findViewById<Button>(R.id.button_select).setOnClickListener { _: View ->  listener.onPickImage()  }
+        findViewById<ToggleButton>(R.id.toggle_mode).setOnClickListener {v: View -> run { toggleMode(v) } }
 
         arFragment =
                 (context as AppCompatActivity).supportFragmentManager.findFragmentById(R.id.ux_fragment) as ArFragment
-        arFragment.setOnTapArPlaneListener { hitResult: HitResult, plane: Plane, motionEvent: MotionEvent ->
+        arFragment.setOnTapArPlaneListener { hitResult: HitResult, plane: Plane, _: MotionEvent ->
             listener.onTapArPlane(hitResult, plane)
         }
 
@@ -58,23 +62,23 @@ class MainView @JvmOverloads constructor(
                 }
     }
 
-    fun measureUp(v: View) {
+    private fun toggleMode(v: View) {
         val toggle = v as ToggleButton
         if (toggle.isChecked) {
             Log.d("Measure", "Started")
-            listener.setMode(State.MODE.SUGGEST_PLACE)
+            listener.setMode(State.Mode.SUGGEST_PLACE)
         }
         else {
             Log.d("Place", "Started")
-            listener.setMode(State.MODE.SELF_PLACE)
+            listener.setMode(State.Mode.SELF_PLACE)
         }
     }
 
-    fun setImage(bitmap: Bitmap?) {
+    override fun setImage(bitmap: Bitmap?) {
         imageView.setImageBitmap(bitmap)
     }
 
-    fun placeImage(hitResult: HitResult, plane: Plane) {
+    override fun placeImage(hitResult: HitResult, plane: Plane) {
         val node = getNode(hitResult)
         node.renderable = loadedRenderable
         when (plane.type) {
@@ -84,20 +88,17 @@ class MainView @JvmOverloads constructor(
                 node.localRotation = Quaternion.axisAngle(Vector3.right(), -90.0f)
             }
             Plane.Type.VERTICAL -> {
-                //val planeNormal = plane.centerPose.yAxis.toV();
-                //val upQuat = Quaternion.lookRotation(planeNormal, Vector3.up()).inverted()
                 node.setLookDirection(node.down,node.back)
-                //node.scaleController.
             }
+            null -> {}
         }
         Log.d("Look direction", "Changed to up")
-        //node.localScale = node.localScale.scaled(0.1f) //appears to do nothing!
         node.select()
     }
 
-    fun placeImage(plane: Plane, pose: Pose, translation: Float) {
-        val translatedPose = pose.compose(Pose.makeTranslation(floatArrayOf(0f, 0f, translation*-1)))
-        val node = getNode(plane,translatedPose)
+    override fun placeImage(plane: Plane, pose: Pose, translation: Float) {
+        val translatedPose = pose.compose(Pose.makeTranslation(floatArrayOf(0f, 0f, translation * -1)))
+        val node = getNode(plane, translatedPose)
         node.renderable = loadedRenderable
         when (plane.type) {
             Plane.Type.HORIZONTAL_DOWNWARD_FACING -> {
@@ -108,15 +109,15 @@ class MainView @JvmOverloads constructor(
             Plane.Type.VERTICAL -> {
                 node.setLookDirection(node.down,node.back)
             }
+            null -> {}
         }
-        //do the node translation here to place image at correct height
         Log.d("Look direction", "Changed to up")
         node.select()
     }
 
-    /*
-    Takes a hitResult, makes an AnchorNode out of it
-    gives a TransformableNode which can be rotated that is a child of AnchorNode
+    /**
+     * Takes a HitResult and makes an AnchorNode out of it.
+     * @return a TransformableNode which can be rotated that is a child of AnchorNode.
      */
     private fun getNode(hitResult: HitResult): TransformableNode {
         val scene = arFragment.arSceneView.scene

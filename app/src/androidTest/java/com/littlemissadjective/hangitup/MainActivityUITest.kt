@@ -33,4 +33,4 @@ class MainActivityUITest {
                 .perform(click())
                 .check(matches(withText("Self Place Mode")))
     }
-} 
+}

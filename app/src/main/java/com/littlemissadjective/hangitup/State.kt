@@ -4,13 +4,11 @@ import java.io.File
 
 class State {
 
-    enum class MODE {
+    enum class Mode {
         SELF_PLACE, SUGGEST_PLACE
     }
 
-    val perfectHeight = 1.4478
-
     lateinit var image: File
 
-    var mode = MODE.SELF_PLACE
+    var mode = Mode.SELF_PLACE
 }

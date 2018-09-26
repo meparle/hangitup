@@ -15,13 +15,21 @@ import com.google.ar.core.Plane
 import java.io.File
 import kotlin.math.pow
 
-class MainActivity : AppCompatActivity(), MainView.ViewListener {
+/**
+ * Main application activity.
+ *
+ * <p>Displays a calibration image, a button to select an image from the phone's gallery, and a
+ * button to toggle the placement mode. The two placement modes are self place, where the image is
+ * placed by tapping on plane, and suggest place, where the image is automatically placed in a
+ * recommended position.
+ */
+class MainActivity : AppCompatActivity(), IMainView.ViewListener {
 
-    private lateinit var mainView: MainView
-    private val REQUEST_IMAGE_GET = 1
     private var planeHit: HitResult? = null
     private var floorEdge: HitResult? = null
     private var state = State()
+    /** Main app UI. Can be set by tests; otherwise instantiated in {@link #onCreate}. */
+    lateinit var mainView: IMainView
 
     override
     fun onCreate(savedInstanceState: Bundle?) {
@@ -32,11 +40,13 @@ class MainActivity : AppCompatActivity(), MainView.ViewListener {
         }
 
         setContentView(R.layout.activity_ux)
-        mainView = findViewById(R.id.main_view)
-        mainView.listener = this
+        if (!this::mainView.isInitialized) {
+            mainView = findViewById<MainView>(R.id.main_view)
+            mainView.listener = this
+        }
     }
 
-    fun suggestPlacementPoint(wallPoint:HitResult, floorEdgePoint:HitResult) {
+    private fun suggestPlacementPoint(wallPoint: HitResult, floorEdgePoint: HitResult) {
         val plane = wallPoint.trackable
         val wallPose = wallPoint.hitPose
         Log.d("Suggested placement", "wall point translation ${wallPose.extractTranslation()}")
@@ -45,26 +55,13 @@ class MainActivity : AppCompatActivity(), MainView.ViewListener {
         Log.d("Suggested placement", "distance to wall $distToWall")
         val distToFloorEdge = floorEdgePoint.distance
         Log.d("Suggested placement", "distance to floor edge $distToFloorEdge")
-        val distBetweenPoints : Float = kotlin.math.sqrt((distToFloorEdge.pow(2)) - (distToWall.pow(2)))
+        val distBetweenPoints: Float = kotlin.math.sqrt((distToFloorEdge.pow(2)) - (distToWall.pow(2)))
         Log.d("Suggested placement", "distance between two $distBetweenPoints")
-        //make a float array to feed into makeTranslation
-//        when {
-//            distBetweenPoints.equals(state.perfectHeight) -> //placementNode = getNode(wallPoint)
-//                placeImage(wallPoint,plane as Plane)
-              mainView.placeImage(plane as Plane, wallPose, (state.perfectHeight - distBetweenPoints).toFloat())
-//            distBetweenPoints < state.perfectHeight -> {
-//                //translate WallPoint up along the plane by state.perfectHeight - distBetweenPoints
-//                //plane.createAnchor()
-//            }
-//            else -> {
-//                //translate WallPoint down along the plane by distBetweenPoints - state.perfectHeight
-//                //plane.createAnchor()
-//            }
-//        }
+        mainView.placeImage(plane as Plane, wallPose, (PERFECT_HEIGHT - distBetweenPoints).toFloat())
         Log.d("Suggested placement", "Done")
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    public override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == REQUEST_IMAGE_GET && resultCode == RESULT_OK) {
             val savedFile = fileCache(data!!.data)
             mainView.setImage(BitmapFactory.decodeFile(savedFile.absolutePath))
@@ -89,10 +86,25 @@ class MainActivity : AppCompatActivity(), MainView.ViewListener {
         return file
     }
 
+    /**
+     * Called when the user taps a point on the AR plane.
+     *
+     * <p>In {@code SELF_PLACE} mode, this tap places the image in that location.
+     *
+     * <p>In {@code SUGGEST_PLACE} mode, if this is the first tap, the hit result is recorded and no
+     * other action is taken. If this is the second tap, the two locations are used to determine the
+     * optimal image placement, which is suggested to the user.
+     *
+     * <p>The first tap is expected to be on the wall directly opposite the phone and the second tap
+     * is expected to be on the intersection of wall and floor.
+     *
+     * @param hitResult represents the location of the tap event in the AR scene
+     * @param plane the plane of the tap event
+     */
     override fun onTapArPlane(hitResult: HitResult, plane: Plane) {
-        if (state.mode == State.MODE.SELF_PLACE) {
+        if (state.mode == State.Mode.SELF_PLACE) {
             mainView.placeImage(hitResult, plane)
-        } else if (state.mode == State.MODE.SUGGEST_PLACE) {
+        } else if (state.mode == State.Mode.SUGGEST_PLACE) {
             if (planeHit == null) {
                 planeHit = hitResult
                 Toast.makeText(this, "Rotate phone and tap on where the floor meets the wall", Toast.LENGTH_SHORT).show()
@@ -105,6 +117,10 @@ class MainActivity : AppCompatActivity(), MainView.ViewListener {
         }
     }
 
+    /**
+     * Called when the user clicks the image selection button. Launches an intent to choose an image
+     * from the device.
+     */
     override fun onPickImage() {
         Log.d("Picker", "Picked")
         val intent = Intent(Intent.ACTION_GET_CONTENT)
@@ -114,32 +130,36 @@ class MainActivity : AppCompatActivity(), MainView.ViewListener {
         }
     }
 
-    /*
-    Tap one indicates plane / stores it as hitResult.getTrackable()
-    Tap two stores HitResult of where wall meets floor
-    System calculates where perfectHeight intersects with detected plane up from wall tap, places new anchor
-    Picture appears centred on new anchor
-    */
-    override fun setMode(mode: State.MODE) {
-        if (mode == State.MODE.SUGGEST_PLACE) {
+    /**
+     * Sets the app to one of two modes:
+     *
+     * <ul>
+     *   <li>{@code SUGGEST_PLACE}: The app expects two taps on the AR scene, the first on the wall
+     *       directly opposite the phone, and the second on the intersection of the wall and floor.
+     *       From these the optimal picture placement is suggested.
+     *   <li>{@code SELF_PLACE}: The user can tap to place the image directly on the wall.
+     * </ul>
+     */
+    override fun setMode(mode: State.Mode) {
+        if (mode == State.Mode.SUGGEST_PLACE) {
             Toast.makeText(this, "Hold phone parallel to the wall and tap on the wall", Toast.LENGTH_SHORT).show()
-            state.mode = State.MODE.SUGGEST_PLACE
+            state.mode = State.Mode.SUGGEST_PLACE
         } else {
-            state.mode = State.MODE.SELF_PLACE
+            state.mode = State.Mode.SELF_PLACE
         }
     }
 
     companion object {
-        private val TAG = MainActivity::class.java.getSimpleName()
-        private val MIN_OPENGL_VERSION = 3.1
+        private val TAG = MainActivity::class.java.simpleName
+        private const val MIN_OPENGL_VERSION = 3.1
+        const val REQUEST_IMAGE_GET = 1
+        const val PERFECT_HEIGHT = 1.4478 // meters
 
         /**
-         * Returns false and displays an error message if Sceneform can not run, true if Sceneform can run
-         * on this device.
+         * Checks if the device can support Sceneform.
          *
-         * Sceneform requires OpenGL 3.1 capabilities.
-         *
-         * Finishes the activity if Sceneform can not run
+         * Finishes the activity with an error message if the device does not support Sceneform;
+         * otherwise returns true.
          */
         fun checkIsSupportedDeviceOrFinish(activity: Activity): Boolean {
             val openGlVersionString = (activity.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager)
@@ -156,7 +176,3 @@ class MainActivity : AppCompatActivity(), MainView.ViewListener {
         }
     }
 }
-
-//fun FloatArray.toQ() = Quaternion(this[0], this[1], this[2], this[3])
-//fun FloatArray.toV() = Vector3(this[0], this[1], this[2])
-//operator fun Quaternion.times(other: Quaternion): Quaternion = multiply(this, other)
