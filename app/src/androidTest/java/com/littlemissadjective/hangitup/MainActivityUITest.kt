@@ -22,15 +22,10 @@ import org.junit.Rule
  * See [testing documentation](http://d.android.com/tools/testing).
  */
 @RunWith(AndroidJUnit4::class)
-class MainActivityTest {
+class MainActivityUITest {
 
     @Rule @JvmField
     var mActivityRule: ActivityTestRule<MainActivity> = ActivityTestRule(MainActivity::class.java)
-
-    @Before
-    fun setup() {
-//        MainActivity.layout = R.layout.activity_ux
-    }
 
     @Test
     fun useAppContext() {
@@ -42,8 +37,8 @@ class MainActivityTest {
     @Test
     fun changeMode() {
         onView(withId(R.id.toggle_mode))
-                .check(matches(withText("@string/suggest")))
+                .check(matches(withText("Suggest Place Mode")))
                 .perform(click())
-                .check(matches(withText("@string/self")))
+                .check(matches(withText("Self Place Mode")))
     }
 }
